@@ -13,6 +13,9 @@ method replaceNode(node) {
         if (node.value.value == "over()map") then {
             return overMap(node)
         }
+        if (node.value.value == "over()numbers()do()size") then {
+            return overNumbersDo(node)
+        }
     }
     return node
 }
@@ -65,17 +68,79 @@ method compileMapBlock(block) {
     }
 }
 
+method compileNumbersDoBlock(block, node) {
+    var str := ""
+    for (block.body) do {n->
+        str := str ++ compileNode(n) ++ ";\n"
+    }
+    def id = str.hashcode
+    var header := "extern \"C\" __global__ void block{id}("
+    var init := ""
+    var pIndex := 1
+    for (node.with[1].args) do {p->
+        header := header ++ "float *{block.params.at(pIndex).value}, "
+        pIndex := pIndex + 1
+    }
+    for (node.with[2].args) do {p->
+        header := header ++ "const float {block.params.at(pIndex).value}, "
+        pIndex := pIndex + 1
+    }
+    header := header ++ "int {block.params.at(pIndex).value}) \{\n"
+    def fp = io.open("_cuda/{str.hashcode}.cu", "w")
+    fp.write(header)
+    fp.write(init)
+    fp.write(str)
+    fp.write("}")
+    fp.close
+    io.system("/opt/cuda/bin/nvcc -m64 -I/opt/cuda/include -I. -I.. "
+        ++ "-I../../common/inc -o _cuda/{id}.ptx -ptx _cuda/{id}.cu")
+    return object {
+        def kind is public, readable = "string"
+        var value is public, readable, writable := "_cuda/{id}.ptx"
+        var register is public, readable, writable := ""
+        def line is public, readable = block.line
+        method accept(visitor) is public {
+            visitor.visitString(self)
+        }
+    }
+}
+method overNumbersDo(node) {
+    node.with[3].args[1] := compileNumbersDoBlock(node.with[3].args[1], node)
+    return node
+}
+
 method compileNum(node) {
     return "{node.value}"
 }
 method compileOp(node) {
     return "{compileNode(node.left)} {node.value} {compileNode(node.right)}"
 }
+method compileMember(node) {
+    return "{compileNode(node.in)}.{node.value}"
+}
+method compileIndex(node) {
+    return "{compileNode(node.value)}[{compileNode(node.index)}]"
+}
+method compileBind(node) {
+    return "{compileNode(node.dest)} = {compileNode(node.value)}"
+}
+method compileIf(node) {
+    var r := "  if ({compileNode(node.value)}) \{\n"
+    for (node.thenblock) do {n->
+        r := r ++ "    {compileNode(n)};\n"
+    }
+    r := r ++ "  \}"
+    return r
+}
 method compileNode(node) {
     match(node.kind)
         case { "identifier" -> return node.value }
         case { "op" -> compileOp(node) }
         case { "num" -> compileNum(node) }
+        case { "member" -> compileMember(node) }
+        case { "index" -> compileIndex(node) }
+        case { "bind" -> compileBind(node) }
+        case { "if" -> compileIf(node) }
         case { _ ->
             CudaError.raise "Cannot compile {node.kind}:{node.value} to CUDA."}
 }
