@@ -124,6 +124,12 @@ method compileIndex(node) {
 method compileBind(node) {
     return "{compileNode(node.dest)} = {compileNode(node.value)}"
 }
+method compileVarDec(node) {
+    return "{compileNode(node.dtype)} {compileNode(node.name)} = {compileNode(node.value)}"
+}
+method compileDefDec(node) {
+    return "const {compileNode(node.dtype)} {compileNode(node.name)} = {compileNode(node.value)}"
+}
 method compileIf(node) {
     var r := "  if ({compileNode(node.value)}) \{\n"
     for (node.thenblock) do {n->
@@ -141,6 +147,8 @@ method compileNode(node) {
         case { "index" -> compileIndex(node) }
         case { "bind" -> compileBind(node) }
         case { "if" -> compileIf(node) }
+        case { "vardec" -> compileVarDec(node) }
+        case { "defdec" -> compileDefDec(node) }
         case { _ ->
             CudaError.raise "Cannot compile {node.kind}:{node.value} to CUDA."}
 }
