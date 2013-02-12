@@ -54,7 +54,7 @@ Object alloc_CudaFloatArray(int n) {
     }
     return o;
 }
-Object cuda_over_do(Object self, int nparts, int *argcv,
+Object cuda_over_map(Object self, int nparts, int *argcv,
         Object *argv, int flags) {
     CUresult error;
     cuInit(0);
@@ -79,22 +79,27 @@ Object cuda_over_do(Object self, int nparts, int *argcv,
                 grcstring(argv[argcv[0]]));
         exit(1);
     }
-    struct CudaFloatArray *a = (struct CudaFloatArray *)argv[0];
-    struct CudaFloatArray *b = (struct CudaFloatArray *)argv[1];
-    int size = a->size;
+    CUdeviceptr dps[argcv[0]];
+    void *args[argcv[0]+2];
+    int size = INT_MAX;
+    for (int i=0; i<argcv[0]; i++) {
+        struct CudaFloatArray *a = (struct CudaFloatArray *)argv[i];
+        if (a->size < size)
+            size = a->size;
+        errcheck(cuMemAlloc(&dps[i], size * sizeof(float)));
+        errcheck(cuMemcpyHtoD(dps[i], &a->data, size * sizeof(float)));
+        args[i+1] = &dps[i];
+    }
     struct CudaFloatArray *r =
         (struct CudaFloatArray *)(alloc_CudaFloatArray(size));
     int fsize = sizeof(float) * size;
-    errcheck(cuMemAlloc(&d_A, fsize));
-    errcheck(cuMemcpyHtoD(d_A, &a->data, fsize));
-    errcheck(cuMemAlloc(&d_B, fsize));
-    errcheck(cuMemcpyHtoD(d_B, &b->data, fsize));
     errcheck(cuMemAlloc(&d_res, fsize));
     errcheck(cuMemcpyHtoD(d_res, &r->data, fsize));
+    args[0] = &d_res;
+    args[argcv[0]+1] = &size;
 
     int threadsPerBlock = 256;
     int blocksPerGrid = (size + threadsPerBlock - 1) / threadsPerBlock;
-    void *args[] = { &d_res, &d_A, &d_B, &size };
     char name[256];
     strcpy(name, "block");
     strcat(name, grcstring(argv[argcv[0]]) + strlen("_cuda/"));
@@ -119,9 +124,9 @@ Object cuda_over_do(Object self, int nparts, int *argcv,
         exit(1);
     }
     errcheck(cuMemcpyDtoH(&r->data, d_res, fsize));
-    cuMemFree(d_A);
-    cuMemFree(d_B);
     cuMemFree(d_res);
+    for (int i=0; i<argcv[0]; i++)
+        cuMemFree(dps[i]);
     return (Object)r;
 }
 Object cuda_floatArray(Object self, int nparts, int *argcv,
@@ -133,7 +138,7 @@ Object module_cuda_init() {
     if (cuda_module != NULL)
         return cuda_module;
     ClassData c = alloc_class("Module<cuda>", 13);
-    add_Method(c, "over()do", &cuda_over_do);
+    add_Method(c, "over()map", &cuda_over_map);
     add_Method(c, "floatArray", &cuda_floatArray);
     Object o = alloc_newobj(0, c);
     cuda_module = o;

@@ -10,7 +10,7 @@ method replaceNode(node) {
         if (node.value.in.value != "cuda") then {
             return node
         }
-        if (node.value.value != "over()do") then {
+        if (node.value.value != "over()map") then {
             return node
         }
         if (node.with[2].args[1].kind != "block") then {
