@@ -130,6 +130,14 @@ method compileVarDec(node) {
 method compileDefDec(node) {
     return "const {compileNode(node.dtype)} {compileNode(node.name)} = {compileNode(node.value)}"
 }
+method compileCall(node) {
+    var r := "{compileNode(node.value)}("
+    for (node.with[1].args) do {a->
+        r := r ++ compileNode(a) ++ ", "
+    }
+    r := r.substringFrom(1)to(r.size-2) ++ ")"
+    return r
+}
 method compileIf(node) {
     var r := "  if ({compileNode(node.value)}) \{\n"
     for (node.thenblock) do {n->
@@ -149,6 +157,7 @@ method compileNode(node) {
         case { "if" -> compileIf(node) }
         case { "vardec" -> compileVarDec(node) }
         case { "defdec" -> compileDefDec(node) }
+        case { "call" -> compileCall(node) }
         case { _ ->
             CudaError.raise "Cannot compile {node.kind}:{node.value} to CUDA."}
 }
