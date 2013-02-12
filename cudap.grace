@@ -10,18 +10,22 @@ method replaceNode(node) {
         if (node.value.in.value != "cuda") then {
             return node
         }
-        if (node.value.value != "over()map") then {
-            return node
+        if (node.value.value == "over()map") then {
+            return overMap(node)
         }
-        if (node.with[2].args[1].kind != "block") then {
-            return node
-        }
-        node.with[2].args[1] := compileBlock(node.with[2].args[1])
     }
     return node
 }
 
-method compileBlock(block) {
+method overMap(node) {
+    if (node.with[2].args[1].kind != "block") then {
+        return node
+    }
+    node.with[2].args[1] := compileMapBlock(node.with[2].args[1])
+    return node
+}
+
+method compileMapBlock(block) {
     var str := ""
     var res := "0"
     var last := ""
@@ -48,7 +52,6 @@ method compileBlock(block) {
     fp.write(str)
     fp.write("}")
     fp.close
-    io.error.write("Compiling CUDA...\n")
     io.system("/opt/cuda/bin/nvcc -m64 -I/opt/cuda/include -I. -I.. " 
         ++ "-I../../common/inc -o _cuda/{id}.ptx -ptx _cuda/{id}.cu")
     return object {
@@ -62,6 +65,9 @@ method compileBlock(block) {
     }
 }
 
+method compileNum(node) {
+    return "{node.value}"
+}
 method compileOp(node) {
     return "{compileNode(node.left)} {node.value} {compileNode(node.right)}"
 }
@@ -69,6 +75,7 @@ method compileNode(node) {
     match(node.kind)
         case { "identifier" -> return node.value }
         case { "op" -> compileOp(node) }
+        case { "num" -> compileNum(node) }
         case { _ ->
             CudaError.raise "Cannot compile {node.kind}:{node.value} to CUDA."}
 }
