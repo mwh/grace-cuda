@@ -28,14 +28,14 @@ Object cuda_FloatArray_at(Object self, int nparts, int *argcv,
         Object *argv, int flags) {
     int n = integerfromAny(argv[0]);
     struct CudaFloatArray *a = (struct CudaFloatArray *)self;
-    return alloc_Float64(a->data[n-1]);
+    return alloc_Float64(a->data[n]);
 }
 Object cuda_FloatArray_at_put(Object self, int nparts, int *argcv,
         Object *argv, int flags) {
     int n = integerfromAny(argv[0]);
     struct CudaFloatArray *a = (struct CudaFloatArray *)self;
     float f = (float)*((double *)argv[1]->data);
-    a->data[n-1] = f;
+    a->data[n] = f;
     return alloc_none();
 }
 Object alloc_CudaFloatArray(int n) {
