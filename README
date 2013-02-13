@@ -1,1 +1,19 @@
 grace-cuda provides Grace bindings to CUDA, a GPU processing system
+
+To compile CUDA code you will need to enable the cudap compiler plugin
+using the -XPlugin=cudap option to minigrace.
+
+cudap will need to be in the dynamic search path of minigrace -- the two
+simplest locations are either the current directory or next to minigrace
+itself, which is where `make install` will put it. grace-cuda also
+requires a directory "_cuda" to be found in the current directory, in
+which the generated CUDA kernel files will be stored.
+
+There are some small sample programs using grace-cuda in the samples
+directory. To build them all, run `make samples` and then run each as
+(e.g.) `samples/matrix`. Each sample includes a brief description at the
+top.
+
+If your Minigrace or CUDA installations are different than expected you
+will need to specify one or more of the variables found at the top of
+the Makefile.
