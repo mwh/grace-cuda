@@ -26,6 +26,7 @@ install: cudap.gso cuda.gso
 
 clean:
 	rm -f cudap.gso cuda.gso
+	rm -f cudap.gct cudap.c cudap.gcn
 	rm -f samples/*.c samples/*.gct samples/*.gcn
 	rm -f _cuda/*
 	rm -f $(SAMPLES_EXECUTABLES)
