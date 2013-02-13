@@ -40,9 +40,11 @@ Object cuda_FloatArray_at_put(Object self, int nparts, int *argcv,
 }
 Object alloc_CudaFloatArray(int n) {
     if (!CudaFloatArray) {
-        CudaFloatArray = alloc_class("CudaFloatArray", 2);
+        CudaFloatArray = alloc_class("CudaFloatArray", 4);
         add_Method(CudaFloatArray, "at", &cuda_FloatArray_at);
         add_Method(CudaFloatArray, "at()put", &cuda_FloatArray_at_put);
+        add_Method(CudaFloatArray, "[]", &cuda_FloatArray_at);
+        add_Method(CudaFloatArray, "[]:=", &cuda_FloatArray_at_put);
     }
     Object o = alloc_obj(sizeof(struct CudaFloatArray) - sizeof(struct Object)
             + sizeof(float) * n,
