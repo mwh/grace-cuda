@@ -1,3 +1,11 @@
-cudap.{c,gcn,gct}
+cudap.c
+*.gcn
+*.gct
 cudap.gso
 cuda.gso
+samples/*.gct
+samples/*.c
+samples/*.gcn
+samples/map
+samples/generalcuda
+samples/matrix

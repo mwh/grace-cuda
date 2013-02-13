@@ -1,0 +1,7 @@
+These sample programs can be compiled with `make samples`:
+- map performs a simple map over multiple arrays.
+- generalcuda uses general CUDA code to perform multiple tasks. The
+  code is written in a Grace-like syntax, but corresponds directly to
+  CUDA operations.
+- matrix implements a simple matrix multiplication algorithm and its
+  native Grace equivalent for comparison.
