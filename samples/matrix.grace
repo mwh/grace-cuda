@@ -31,6 +31,7 @@ method printMatrix(label, m, h, w) {
     if (!doPrinting) then {
         return m
     }
+    // Matrices are stored across-then-down in the arrays.
     print "{label}:"
     for (0..(h-1)) do {y->
         var row := ""
@@ -45,15 +46,37 @@ printMatrix("M2", m2, m2h, m2w)
 
 print "{sys.elapsed}: Starting CUDA..."
 def startCuda = sys.elapsed
+// This block is syntactically Grace code, but is translated by the
+// compiler plugin to CUDA C code (whence the "int" and "float" types).
+// It is executed in parallel lockstep across the CUDA cores size times,
+// with m1, m2, and m3 available as arrays a, b, and c, and m1h, m1w,
+// and m2w floats called n, m, and p. It reads from m1 and m2 and saves
+// the results into m3. Each core calculates one cell of the matrix
+// at once using the definition of matrix multiplication.
 cuda.over(m1, m2, m3)numbers(m1h, m1w, m2w)do {a, b, c, n, m, p, size ->
     var index : int := blockDim.x * blockIdx.x + threadIdx.x
+    // The code from here on, with the types removed, is exactly
+    // the same as in the Grace implementation below with one
+    // exception. The Grace version requires that the
+    // initialisation of i be truncated to an integer explicitly,
+    // because all numbers may be fractional. Other than those
+    // changes, the body of the loop in graceMatrixMultiply is
+    // identical to here.
     def ma : int = m - 1
     def p2 : int = p
     if (index < size) then {
+        // This block calculates:
+        //     C(i,j) = Σ(0, m-1, A(i,k)B(k,j))
+        // a, b, and c are all arrays flattening the matrices
+        // across-then-down.
+        // First find the (i,j) coordinates from the index
+        // of the destination in the flat output array.
         def i : int = index / p2
         def j : int = index % p2
         var val : float := 0
         for (0..ma) do {k->
+            // Linearise the matrix coordinates to find the
+            // right locations in the flat input arrays.
             def ai : int = k + i * m
             def bi : int = j + k * m
             val := val + a[ai] * b[bi]
@@ -66,7 +89,7 @@ print "{sys.elapsed}: Done"
 
 printMatrix("M3", m3, m1h, m2w)
 
-method baseMult(a, b, c, n, m, p) {
+method graceMatrixMultiply(a, b, c, n, m, p) {
     def size = n * p
     for (0..(size-1)) do {index->
         def ma = m - 1
@@ -78,15 +101,15 @@ method baseMult(a, b, c, n, m, p) {
             for (0..ma) do {k->
                 def ai = k + i * m
                 def bi = j + k * m
-                val := val + a.at(ai) * b.at(bi)
+                val := val + a[ai] * b[bi]
             }
-            c.at(index)put(val)
+            c[index] := val
         }
     }
 }
 print "{sys.elapsed}: Starting Grace..."
 def startGrace = sys.elapsed
-baseMult(m1, m2, m4, m1h, m1w, m2w)
+graceMatrixMultiply(m1, m2, m4, m1h, m1w, m2w)
 def graceTime = sys.elapsed - startGrace
 print "{sys.elapsed}: Done."
 printMatrix("M4", m4, m1h, m2w)
