@@ -130,7 +130,23 @@ method compileVarDec(node) {
 method compileDefDec(node) {
     return "const {compileNode(node.dtype)} {compileNode(node.name)} = {compileNode(node.value)}"
 }
+method compileFor(node) {
+    def over = node.with[1].args[1]
+    if (over.value != "..") then {
+        CudaError.raise "Can only write CUDA for loop over numbers x..y."
+    }
+    def vn = node.with[2].args[1].params[1].value
+    var r := "  for (int {vn}={compileNode(over.left)}; {vn}<={compileNode(over.right)}; {vn}++) \{\n"
+    for (node.with[2].args[1].body) do {n->
+        r := r ++ "    {compileNode(n)};\n"
+    }
+    r := r ++ "  \}"
+    return r
+}
 method compileCall(node) {
+    if (node.value.value == "for()do") then {
+        return compileFor(node)
+    }
     var r := "{compileNode(node.value)}("
     for (node.with[1].args) do {a->
         r := r ++ compileNode(a) ++ ", "
