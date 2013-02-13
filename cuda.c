@@ -209,6 +209,64 @@ Object cuda_floatArray(Object self, int nparts, int *argcv,
     int n = integerfromAny(argv[0]);
     return alloc_CudaFloatArray(n);
 }
+Object cuda_deviceName(Object self, int nparts, int *argcv,
+        Object *argv, int flags) {
+    cuInit(0);
+    int deviceCount = 0;
+    cuDeviceGetCount(&deviceCount);
+    if (deviceCount == 0) {
+        fprintf(stderr, "no devices found\n");
+        exit(1);
+    }
+    CUdevice cuDevice;
+    cuDeviceGet(&cuDevice, 0);
+    char name[100];
+    cuDeviceGetName(name, 100, cuDevice);
+    return alloc_String(name);
+}
+Object cuda_computeCapability(Object self, int nparts, int *argcv,
+        Object *argv, int flags) {
+    cuInit(0);
+    int deviceCount = 0;
+    cuDeviceGetCount(&deviceCount);
+    if (deviceCount == 0) {
+        fprintf(stderr, "no devices found\n");
+        exit(1);
+    }
+    CUdevice cuDevice;
+    int major, minor;
+    cuDeviceComputeCapability(&major, &minor, cuDevice);
+    return alloc_Float64(major + minor / 10.0);
+}
+int coreMultiplicand(int major, int minor) {
+    if (major == 1)
+        return 8;
+    if (major == 3)
+        return 192;
+    if (major == 2 && minor == 0)
+        return 32;
+    if (major == 2 && minor == 1)
+        return 48;
+    return 192;
+}
+Object cuda_cores(Object self, int nparts, int *argcv,
+        Object *argv, int flags) {
+    cuInit(0);
+    int deviceCount = 0;
+    cuDeviceGetCount(&deviceCount);
+    if (deviceCount == 0) {
+        fprintf(stderr, "no devices found\n");
+        exit(1);
+    }
+    CUdevice cuDevice;
+    int mpcount;
+    cuDeviceGetAttribute(&mpcount, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT,
+            cuDevice);
+    int major, minor;
+    cuDeviceComputeCapability(&major, &minor, cuDevice);
+    mpcount *= coreMultiplicand(major, minor);
+    return alloc_Float64(mpcount);
+}
 Object module_cuda_init() {
     if (cuda_module != NULL)
         return cuda_module;
@@ -216,6 +274,9 @@ Object module_cuda_init() {
     add_Method(c, "over()map", &cuda_over_map);
     add_Method(c, "over()numbers()do()size", &cuda_over_numbers_do_size);
     add_Method(c, "floatArray", &cuda_floatArray);
+    add_Method(c, "deviceName", &cuda_deviceName);
+    add_Method(c, "computeCapability", &cuda_computeCapability);
+    add_Method(c, "cores", &cuda_cores);
     Object o = alloc_newobj(0, c);
     cuda_module = o;
     gc_root(o);

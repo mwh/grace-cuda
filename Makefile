@@ -6,7 +6,7 @@ CUDA_INCLUDE_DIR=$(CUDA_DIR)/include
 INSTALL_DIR=$(MINIGRACE_DIR)
 
 SAMPLES = map generalcuda matrix
-SAMPLES_EXECUTABLES = $(foreach s,$(SAMPLES),samples/$(s))
+SAMPLES_EXECUTABLES = $(addprefix samples/,$(SAMPLES))
 
 all: cudap.gso cuda.gso
 
