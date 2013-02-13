@@ -16,6 +16,9 @@ method replaceNode(node) {
         if (node.value.value == "over()numbers()do()size") then {
             return overNumbersDo(node)
         }
+        if (node.value.value == "over()floats()ints()blockWidth()blockHeight()gridWidth()gridHeight()do") then {
+            return overAllDo(node)
+        }
     }
     return node
 }
@@ -26,6 +29,11 @@ method nvcc(id) {
         CudaError.raise("NVCC returned an error when compiling CUDA code")
     }
 }
+method overAllDo(node) {
+    node.with[8].args[1] := compileAllBlock(node.with[8].args[1], node)
+    return node
+}
+
 method overMap(node) {
     if (node.with[2].args[1].kind != "block") then {
         return node
@@ -91,6 +99,46 @@ method compileNumbersDoBlock(block, node) {
         pIndex := pIndex + 1
     }
     header := header ++ "int {block.params.at(pIndex).value}) \{\n"
+    def fp = io.open("_cuda/{str.hashcode}.cu", "w")
+    fp.write(header)
+    fp.write(init)
+    fp.write(str)
+    fp.write("}")
+    fp.close
+    nvcc(id)
+    return object {
+        def kind is public, readable = "string"
+        var value is public, readable, writable := "_cuda/{id}.ptx"
+        var register is public, readable, writable := ""
+        def line is public, readable = block.line
+        method accept(visitor) is public {
+            visitor.visitString(self)
+        }
+    }
+}
+method compileAllBlock(block, node) {
+    var str := ""
+    for (block.body) do {n->
+        str := str ++ compileNode(n) ++ ";\n"
+    }
+    def id = str.hashcode
+    var header := "extern \"C\" __global__ void block{id}("
+    var init := ""
+    var pIndex := 1
+    for (node.with[1].args) do {p->
+        header := header ++ "float *{block.params.at(pIndex).value}, "
+        pIndex := pIndex + 1
+    }
+    for (node.with[2].args) do {p->
+        header := header ++ "const float {block.params.at(pIndex).value}, "
+        pIndex := pIndex + 1
+    }
+    for (node.with[3].args) do {p->
+        header := header ++ "const int {block.params.at(pIndex).value}, "
+        pIndex := pIndex + 1
+    }
+    header := header.substringFrom(1)to(header.size - 2)
+    header := header ++ ") \{\n"
     def fp = io.open("_cuda/{str.hashcode}.cu", "w")
     fp.write(header)
     fp.write(init)

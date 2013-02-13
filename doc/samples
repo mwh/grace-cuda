@@ -5,3 +5,6 @@ These sample programs can be compiled with `make samples`:
   CUDA operations.
 - matrix implements a simple matrix multiplication algorithm and its
   native Grace equivalent for comparison.
+- matrix2 implements the same algorithm, but using a different method
+  to control the CUDA block size directly, and an even more analogous
+  Grace implementation.
