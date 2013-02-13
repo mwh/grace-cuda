@@ -20,6 +20,12 @@ method replaceNode(node) {
     return node
 }
 
+method nvcc(id) {
+    if (!io.system("/opt/cuda/bin/nvcc -m64 -I/opt/cuda/include -I. -I.. "
+        ++ "-I../../common/inc -o _cuda/{id}.ptx -ptx _cuda/{id}.cu")) then {
+        CudaError.raise("NVCC returned an error when compiling CUDA code")
+    }
+}
 method overMap(node) {
     if (node.with[2].args[1].kind != "block") then {
         return node
@@ -55,8 +61,7 @@ method compileMapBlock(block) {
     fp.write(str)
     fp.write("}")
     fp.close
-    io.system("/opt/cuda/bin/nvcc -m64 -I/opt/cuda/include -I. -I.. " 
-        ++ "-I../../common/inc -o _cuda/{id}.ptx -ptx _cuda/{id}.cu")
+    nvcc(id)
     return object {
         def kind is public, readable = "string"
         var value is public, readable, writable := "_cuda/{id}.ptx"
@@ -92,8 +97,7 @@ method compileNumbersDoBlock(block, node) {
     fp.write(str)
     fp.write("}")
     fp.close
-    io.system("/opt/cuda/bin/nvcc -m64 -I/opt/cuda/include -I. -I.. "
-        ++ "-I../../common/inc -o _cuda/{id}.ptx -ptx _cuda/{id}.cu")
+    nvcc(id)
     return object {
         def kind is public, readable = "string"
         var value is public, readable, writable := "_cuda/{id}.ptx"
