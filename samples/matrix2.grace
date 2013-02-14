@@ -59,8 +59,7 @@ def startCuda = sys.elapsed
 // and m2w ints called n, m, and p. It reads from m1 and m2 and saves
 // the results into m3. Each core calculates one cell of the matrix
 // at once using the definition of matrix multiplication.
-cuda.with(m1, m2, m3, m1h, m1w, m2w)blockWidth(bs)blockHeight(bs)
-    gridWidth(gw)gridHeight(gh)
+cuda.using(m1, m2, m3, m1h, m1w, m2w)
     do {a : floatArray, b : floatArray, c : floatArray, n : int, m : int, p : int ->
     def i : int = blockDim.y * blockIdx.y + threadIdx.y
     def j : int = blockDim.x * blockIdx.x + threadIdx.x
@@ -84,7 +83,7 @@ cuda.with(m1, m2, m3, m1h, m1w, m2w)blockWidth(bs)blockHeight(bs)
         }
         c[index] := val
     }
-}
+} blockWidth(bs) blockHeight(bs) gridWidth(gw) gridHeight(gh)
 def cudaTime = sys.elapsed - startCuda
 print "{sys.elapsed}: Done"
 

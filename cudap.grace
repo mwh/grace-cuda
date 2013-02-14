@@ -16,10 +16,8 @@ method replaceNode(node) {
         if (node.value.value == "over()numbers()do()size") then {
             return overNumbersDo(node)
         }
-        if (node.value.value == "over()floats()ints()blockWidth()blockHeight()gridWidth()gridHeight()do") then {
-            return overAllDo(node)
-        }
-        if (node.value.value ==            "with()blockWidth()blockHeight()gridWidth()gridHeight()do") then {
+        if (node.value.value ==
+            "using()do()blockWidth()blockHeight()gridWidth()gridHeight") then {
             return basicDo(node)
         }
     }
@@ -33,7 +31,7 @@ method nvcc(id) {
     }
 }
 method basicDo(node) {
-    node.with[6].args[1] := compileBasicBlock(node.with[6].args[1], node)
+    node.with[2].args[1] := compileBasicBlock(node.with[2].args[1], node)
     return node
 }
 method overAllDo(node) {
