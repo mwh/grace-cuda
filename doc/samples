@@ -4,7 +4,7 @@ These sample programs can be compiled with `make samples`:
   code is written in a Grace-like syntax, but corresponds directly to
   CUDA operations.
 - matrix implements a simple matrix multiplication algorithm and its
-  native Grace equivalent for comparison.
-- matrix2 implements the same algorithm, but using a different method
-  to control the CUDA block size directly, and an even more analogous
-  Grace implementation.
+  native Grace equivalent for comparison. Essentially the same code is
+  used for both implementations.
+- matrix-flat implements the same algorithm, but with the
+  using()times()do method for a "flat" loop.

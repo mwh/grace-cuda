@@ -5,7 +5,7 @@ CUDA_LIB_DIR=$(CUDA_DIR)/lib64
 CUDA_INCLUDE_DIR=$(CUDA_DIR)/include
 INSTALL_DIR=$(MINIGRACE_DIR)
 
-SAMPLES = map generalcuda matrix matrix2
+SAMPLES = map generalcuda matrix matrix-flat
 SAMPLES_EXECUTABLES = $(addprefix samples/,$(SAMPLES))
 
 all: cudap.gso cuda.gso
