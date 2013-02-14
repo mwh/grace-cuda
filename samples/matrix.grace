@@ -53,7 +53,9 @@ def startCuda = sys.elapsed
 // and m2w floats called n, m, and p. It reads from m1 and m2 and saves
 // the results into m3. Each core calculates one cell of the matrix
 // at once using the definition of matrix multiplication.
-cuda.over(m1, m2, m3)numbers(m1h, m1w, m2w)do {a, b, c, n, m, p, size ->
+cuda.using(m1, m2, m3, m1h, m1w, m2w)times(m1h * m2w)
+    do {a : floatArray, b : floatArray, c : floatArray, n : int, m : int,
+        p : int, size : int ->
     var index : int := blockDim.x * blockIdx.x + threadIdx.x
     // The code from here on, with the types removed, is exactly
     // the same as in the Grace implementation below with one
@@ -83,7 +85,7 @@ cuda.over(m1, m2, m3)numbers(m1h, m1w, m2w)do {a, b, c, n, m, p, size ->
         }
         c[index] := val
     }
-}size(m1h * m2w)
+}
 def cudaTime = sys.elapsed - startCuda
 print "{sys.elapsed}: Done"
 

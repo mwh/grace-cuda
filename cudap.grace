@@ -13,12 +13,15 @@ method replaceNode(node) {
         if (node.value.value == "over()map") then {
             return overMap(node)
         }
-        if (node.value.value == "over()numbers()do()size") then {
-            return overNumbersDo(node)
-        }
         if (node.value.value ==
             "using()do()blockWidth()blockHeight()gridWidth()gridHeight") then {
             return basicDo(node)
+        }
+        if (node.value.value == "using()times()do") then {
+            return usingTimesDo(node)
+        }
+        if (node.value.value == "using()do") then {
+            return usingDo(node)
         }
     }
     return node
@@ -31,6 +34,14 @@ method nvcc(id) {
     }
 }
 method basicDo(node) {
+    node.with[2].args[1] := compileBasicBlock(node.with[2].args[1], node)
+    return node
+}
+method usingTimesDo(node) {
+    node.with[3].args[1] := compileBasicBlock(node.with[3].args[1], node)
+    return node
+}
+method usingDo(node) {
     node.with[2].args[1] := compileBasicBlock(node.with[2].args[1], node)
     return node
 }

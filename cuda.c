@@ -145,7 +145,7 @@ Object cuda_using_do_blockWidth_blockHeight_gridWidth_gridHeight(Object self, in
     }
     return alloc_none();
 }
-Object cuda_over_numbers_do_size(Object self, int nparts, int *argcv,
+Object cuda_using_times_do(Object self, int nparts, int *argcv,
         Object *argv, int flags) {
     CUresult error;
     cuInit(0);
@@ -161,10 +161,20 @@ Object cuda_over_numbers_do_size(Object self, int nparts, int *argcv,
     CUfunction cuFunc;
     error = cuDeviceGet(&cuDevice, 0);
     error = cuCtxCreate(&cuContext, 0, cuDevice);
-    CUdeviceptr d_A;
-    CUdeviceptr d_B;
-    CUdeviceptr d_res;
-    char *blockname = grcstring(argv[argcv[0] + argcv[1]]);
+    // We will infer a suitable gridDimX that includes at least
+    // one thread for each of times.
+    int times = integerfromAny(argv[argcv[0]]);
+    int blockDimX = 256;
+    int blockDimY = 1;
+    int gridDimX = (times + blockDimX - 1) / blockDimX;
+    int gridDimY = 1;
+
+    char *tmp = grcstring(argv[argcv[0] + 1]);
+    char argStr[strlen(tmp) + 1];
+    strcpy(argStr, tmp);
+    char *tmp2 = strtok(argStr, " ");
+    char blockname[128];
+    strcpy(blockname, tmp2);
     error = cuModuleLoad(&cuModule, blockname);
     if (error != CUDA_SUCCESS) {
         fprintf(stderr, "some kind of cuda error: %i %s\n", error,
@@ -172,22 +182,34 @@ Object cuda_over_numbers_do_size(Object self, int nparts, int *argcv,
         exit(1);
     }
     CUdeviceptr dps[argcv[0]];
-    float floats[argcv[1]];
-    void *args[argcv[0]+argcv[1]+1];
-    int size = integerfromAny(argv[argcv[0]+argcv[1]+argcv[2]]);
+    float floats[argcv[0]];
+    void *args[argcv[0] + 1];
+    args[argcv[0]] = &times;
+    int ints[argcv[0]];
+    argStr[strlen(blockname)] = ' ';
+    strtok(argStr, " ");
+    int size = 0;
     for (int i=0; i<argcv[0]; i++) {
-        struct CudaFloatArray *a = (struct CudaFloatArray *)argv[i];
-        errcheck(cuMemAlloc(&dps[i], a->size * sizeof(float)));
-        errcheck(cuMemcpyHtoD(dps[i], &a->data, a->size * sizeof(float)));
-        args[i] = &dps[i];
+        char *argType = strtok(NULL, " ");
+        if (argType[0] == 'f' && argType[1] == '*') {
+            struct CudaFloatArray *a = (struct CudaFloatArray *)argv[i];
+            errcheck(cuMemAlloc(&dps[i], a->size * sizeof(float)));
+            errcheck(cuMemcpyHtoD(dps[i], &a->data, a->size * sizeof(float)));
+            if (a->size > size)
+                size = a->size;
+            args[i] = &dps[i];
+        } else if (argType[0] == 'f') {
+            floats[i] = (float)*((double *)(argv[i]->data));
+            args[i] = &floats[i];
+        } else if (argType[0] == 'i') {
+            ints[i] = integerfromAny(argv[i]);
+            args[i] = &ints[i];
+        } else {
+            // Fail
+            fprintf(stderr, "CUDA argument cannot be coerced. This shouldn't happen. Argument string: %s\n", argType);
+        }
     }
-    for (int i=argcv[0]; i<argcv[0] + argcv[1]; i++) {
-        floats[i-argcv[0]] = (float)*((double *)(argv[i]->data));
-        args[i] = &floats[i-argcv[0]];
-    }
-    args[argcv[0] + argcv[1]] = &size;
-    int threadsPerBlock = 256;
-    int blocksPerGrid = (size + threadsPerBlock - 1) / threadsPerBlock;
+    gridDimX = (size + blockDimX - 1) / blockDimX;
     char name[256];
     strcpy(name, "block");
     strcat(name, blockname + strlen("_cuda/"));
@@ -202,8 +224,101 @@ Object cuda_over_numbers_do_size(Object self, int nparts, int *argcv,
                 name);
         exit(1);
     }
-    error = cuLaunchKernel(cuFunc, blocksPerGrid, 1, 1,
-        threadsPerBlock, 1, 1,
+    error = cuLaunchKernel(cuFunc, gridDimX, gridDimY, 1,
+        blockDimX, blockDimY, 1,
+        0,
+        NULL, args, NULL);
+    if (error != CUDA_SUCCESS) {
+        fprintf(stderr, "some kind of cuda error in running: %i %s\n", error,
+                blockname);
+        exit(1);
+    }
+    for (int i=0; i<argcv[0]; i++) {
+        struct CudaFloatArray *a = (struct CudaFloatArray *)argv[i];
+        errcheck(cuMemcpyDtoH(&a->data, dps[i], a->size * sizeof(float)));
+        cuMemFree(dps[i]);
+    }
+    return alloc_none();
+}
+Object cuda_using_do(Object self, int nparts, int *argcv,
+        Object *argv, int flags) {
+    CUresult error;
+    cuInit(0);
+    int deviceCount = 0;
+    error = cuDeviceGetCount(&deviceCount);
+    if (deviceCount == 0) {
+        fprintf(stderr, "no devices found\n");
+        exit(1);
+    }
+    CUdevice cuDevice;
+    CUcontext cuContext;
+    CUmodule cuModule;
+    CUfunction cuFunc;
+    error = cuDeviceGet(&cuDevice, 0);
+    error = cuCtxCreate(&cuContext, 0, cuDevice);
+    // We will infer a suitable size that includes one thread for
+    // each element of the largest floatArray passed in.
+    int blockDimX = 256;
+    int blockDimY = 1;
+    int gridDimX = 1;
+    int gridDimY = 1;
+
+    char *tmp = grcstring(argv[argcv[0]]);
+    char argStr[strlen(tmp) + 1];
+    strcpy(argStr, tmp);
+    char *tmp2 = strtok(argStr, " ");
+    char blockname[128];
+    strcpy(blockname, tmp2);
+    error = cuModuleLoad(&cuModule, blockname);
+    if (error != CUDA_SUCCESS) {
+        fprintf(stderr, "some kind of cuda error: %i %s\n", error,
+                grcstring(argv[argcv[0]]));
+        exit(1);
+    }
+    CUdeviceptr dps[argcv[0]];
+    float floats[argcv[0]];
+    void *args[argcv[0]];
+    int ints[argcv[0]];
+    argStr[strlen(blockname)] = ' ';
+    strtok(argStr, " ");
+    int size = 0;
+    for (int i=0; i<argcv[0]; i++) {
+        char *argType = strtok(NULL, " ");
+        if (argType[0] == 'f' && argType[1] == '*') {
+            struct CudaFloatArray *a = (struct CudaFloatArray *)argv[i];
+            errcheck(cuMemAlloc(&dps[i], a->size * sizeof(float)));
+            errcheck(cuMemcpyHtoD(dps[i], &a->data, a->size * sizeof(float)));
+            if (a->size > size)
+                size = a->size;
+            args[i] = &dps[i];
+        } else if (argType[0] == 'f') {
+            floats[i] = (float)*((double *)(argv[i]->data));
+            args[i] = &floats[i];
+        } else if (argType[0] == 'i') {
+            ints[i] = integerfromAny(argv[i]);
+            args[i] = &ints[i];
+        } else {
+            // Fail
+            fprintf(stderr, "CUDA argument cannot be coerced. This shouldn't happen. Argument string: %s\n", argType);
+        }
+    }
+    gridDimX = (size + blockDimX - 1) / blockDimX;
+    char name[256];
+    strcpy(name, "block");
+    strcat(name, blockname + strlen("_cuda/"));
+    for (int i=0; name[i] != 0; i++)
+        if (name[i] == '.') {
+            name[i] = 0;
+            break;
+        }
+    error = cuModuleGetFunction(&cuFunc, cuModule, name);
+    if (error != CUDA_SUCCESS) {
+        fprintf(stderr, "some kind of cuda error in getting func: %i %s\n", error,
+                name);
+        exit(1);
+    }
+    error = cuLaunchKernel(cuFunc, gridDimX, gridDimY, 1,
+        blockDimX, blockDimY, 1,
         0,
         NULL, args, NULL);
     if (error != CUDA_SUCCESS) {
@@ -361,13 +476,14 @@ Object module_cuda_init() {
         return cuda_module;
     ClassData c = alloc_class("Module<cuda>", 13);
     add_Method(c, "over()map", &cuda_over_map);
-    add_Method(c, "over()numbers()do()size", &cuda_over_numbers_do_size);
     add_Method(c, "floatArray", &cuda_floatArray);
     add_Method(c, "deviceName", &cuda_deviceName);
     add_Method(c, "computeCapability", &cuda_computeCapability);
     add_Method(c, "cores", &cuda_cores);
     add_Method(c, "using()do()blockWidth()blockHeight()gridWidth()gridHeight",
         &cuda_using_do_blockWidth_blockHeight_gridWidth_gridHeight);
+    add_Method(c, "using()do", &cuda_using_do);
+    add_Method(c, "using()times()do", &cuda_using_times_do);
     Object o = alloc_newobj(0, c);
     cuda_module = o;
     gc_root(o);
