@@ -19,6 +19,9 @@ method replaceNode(node) {
         if (node.value.value == "over()floats()ints()blockWidth()blockHeight()gridWidth()gridHeight()do") then {
             return overAllDo(node)
         }
+        if (node.value.value ==            "with()blockWidth()blockHeight()gridWidth()gridHeight()do") then {
+            return basicDo(node)
+        }
     }
     return node
 }
@@ -28,6 +31,10 @@ method nvcc(id) {
         ++ "-I../../common/inc -o _cuda/{id}.ptx -ptx _cuda/{id}.cu")) then {
         CudaError.raise("NVCC returned an error when compiling CUDA code")
     }
+}
+method basicDo(node) {
+    node.with[6].args[1] := compileBasicBlock(node.with[6].args[1], node)
+    return node
 }
 method overAllDo(node) {
     node.with[8].args[1] := compileAllBlock(node.with[8].args[1], node)
@@ -109,6 +116,53 @@ method compileNumbersDoBlock(block, node) {
     return object {
         def kind is public, readable = "string"
         var value is public, readable, writable := "_cuda/{id}.ptx"
+        var register is public, readable, writable := ""
+        def line is public, readable = block.line
+        method accept(visitor) is public {
+            visitor.visitString(self)
+        }
+    }
+}
+method compileBasicBlock(block, node) {
+    var str := ""
+    for (block.body) do {n->
+        str := str ++ compileNode(n) ++ ";\n"
+    }
+    def id = str.hashcode
+    var header := "extern \"C\" __global__ void block{id}("
+    var init := ""
+    var pIndex := 1
+    var typeStr := ""
+    for (block.params) do {p->
+        if (p.dtype.value == "float") then {
+            header := header ++ "const float {p.value}, "
+            typeStr := typeStr ++ "f "
+        }
+        if (p.dtype.value == "int") then {
+            header := header ++ "const int {p.value}, "
+            typeStr := typeStr ++ "i "
+        }
+        if (p.dtype.value == "floatArray") then {
+            header := header ++ "float *{p.value}, "
+            typeStr := typeStr ++ "f* "
+        }
+    }
+    header := header.substringFrom(1)to(header.size - 2)
+    header := header ++ ") \{\n"
+    def fp = io.open("_cuda/{str.hashcode}.cu", "w")
+    fp.write(header)
+    fp.write(init)
+    fp.write(str)
+    fp.write("}")
+    fp.close
+    nvcc(id)
+    // Here we encode the parameter types given in the block into the
+    // string we replace the block with, along with the name of the
+    // ptx file. The runtime library understands how to unpack this
+    // string and handle the arguments accordingly.
+    return object {
+        def kind is public, readable = "string"
+        var value is public, readable, writable := "_cuda/{id}.ptx " ++ typeStr
         var register is public, readable, writable := ""
         def line is public, readable = block.line
         method accept(visitor) is public {

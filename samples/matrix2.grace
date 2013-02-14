@@ -1,10 +1,11 @@
 import "cuda" as cuda
 import "sys" as sys
 // This sample performs matrix multiplication, taking control of the
-// CUDA block size itself. It includes two implementations: one using
-// CUDA and one in Grace, with the same simple algorithm and almost the
-// same code (modulo types).  Alter the three numbers below to adjust
-// the size of the matrices.
+// CUDA block size itself and using the typed-block with()...()do form.
+// It includes two implementations: one using CUDA and one in Grace,
+// with the same simple algorithm and almost the same code (modulo
+// types).
+// Alter the three numbers below to adjust the size of the matrices.
 def m1w = 100
 def m1h = 100
 def m2w = 100
@@ -55,11 +56,12 @@ def startCuda = sys.elapsed
 // compiler plugin to CUDA C code (whence the "int" and "float" types).
 // It is executed in parallel lockstep across the CUDA cores size times,
 // with m1, m2, and m3 available as arrays a, b, and c, and m1h, m1w,
-// and m2w floats called n, m, and p. It reads from m1 and m2 and saves
+// and m2w ints called n, m, and p. It reads from m1 and m2 and saves
 // the results into m3. Each core calculates one cell of the matrix
 // at once using the definition of matrix multiplication.
-cuda.over(m1, m2, m3)floats()ints(m1h, m1w,
-m2w)blockWidth(bs)blockHeight(bs)gridWidth(gw)gridHeight(gh)do {a, b, c, n, m, p ->
+cuda.with(m1, m2, m3, m1h, m1w, m2w)blockWidth(bs)blockHeight(bs)
+    gridWidth(gw)gridHeight(gh)
+    do {a : floatArray, b : floatArray, c : floatArray, n : int, m : int, p : int ->
     def i : int = blockDim.y * blockIdx.y + threadIdx.y
     def j : int = blockDim.x * blockIdx.x + threadIdx.x
     def index : int = i * p + j
@@ -116,3 +118,4 @@ printMatrix("M4", m4, m1h, m2w)
 
 print "CUDA multiplication time:  {cudaTime}"
 print "Grace multiplication time: {graceTime}"
+
