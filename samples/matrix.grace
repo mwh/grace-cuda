@@ -78,7 +78,7 @@ cuda.over(m1, m2, m3)numbers(m1h, m1w, m2w)do {a, b, c, n, m, p, size ->
             // Linearise the matrix coordinates to find the
             // right locations in the flat input arrays.
             def ai : int = k + i * m
-            def bi : int = j + k * m
+            def bi : int = j + k * p
             val := val + a[ai] * b[bi]
         }
         c[index] := val
@@ -100,7 +100,7 @@ method graceMatrixMultiply(a, b, c, n, m, p) {
             var val := 0
             for (0..ma) do {k->
                 def ai = k + i * m
-                def bi = j + k * m
+                def bi = j + k * p
                 val := val + a[ai] * b[bi]
             }
             c[index] := val

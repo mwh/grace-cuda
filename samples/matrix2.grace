@@ -62,7 +62,7 @@ cuda.over(m1, m2, m3)floats()ints(m1h, m1w,
 m2w)blockWidth(bs)blockHeight(bs)gridWidth(gw)gridHeight(gh)do {a, b, c, n, m, p ->
     def i : int = blockDim.y * blockIdx.y + threadIdx.y
     def j : int = blockDim.x * blockIdx.x + threadIdx.x
-    def index : int = i * m + j
+    def index : int = i * p + j
     // The code from here on, with the types removed, is exactly
     // the same as in the Grace implementation below in
     // graceMatrixMultiply.
@@ -77,7 +77,7 @@ m2w)blockWidth(bs)blockHeight(bs)gridWidth(gw)gridHeight(gh)do {a, b, c, n, m, p
             // Linearise the matrix coordinates to find the
             // right locations in the flat input arrays.
             def ai : int = k + i * m
-            def bi : int = j + k * m
+            def bi : int = j + k * p
             val := val + a[ai] * b[bi]
         }
         c[index] := val
@@ -92,14 +92,14 @@ method graceMatrixMultiply(a, b, c, n, m, p) {
     def size = n * p
     for (0..(n-1)) do {i->
         for (0..(p-1)) do {j->
-            def index = i * m + j
+            def index = i * p + j
             def ma = m - 1
             def p2 = p
             if (index < size) then {
                 var val := 0
                 for (0..ma) do {k->
                     def ai = k + i * m
-                    def bi = j + k * m
+                    def bi = j + k * p
                     val := val + a[ai] * b[bi]
                 }
                 c[index] := val
