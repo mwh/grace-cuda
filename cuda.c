@@ -7,6 +7,21 @@
 
 #include <builtin_types.h>
 
+// Expand paths given on command line to string constants, or use
+// the default if none were given.
+#define str(s) #s
+#define xstr(s) str(s)
+#ifndef CUDA_BIN_DIR
+#define GRACE_CUDA_BIN_DIR "/opt/cuda/bin"
+#else
+#define GRACE_CUDA_BIN_DIR xstr(CUDA_BIN_DIR)
+#endif
+#ifndef CUDA_INCLUDE_DIR
+#define GRACE_CUDA_INCLUDE_DIR "/opt/cuda/include"
+#else
+#define GRACE_CUDA_INCLUDE_DIR xstr(CUDA_INCLUDE_DIR)
+#endif
+
 Object cuda_module;
 
 ClassData CudaFloatArray;
@@ -471,6 +486,14 @@ Object cuda_cores(Object self, int nparts, int *argcv,
     mpcount *= coreMultiplicand(major, minor);
     return alloc_Float64(mpcount);
 }
+Object cuda_bindir(Object self, int nparts, int *argcv,
+        Object *argv, int flags) {
+    return alloc_String(GRACE_CUDA_BIN_DIR);
+}
+Object cuda_includedir(Object self, int nparts, int *argcv,
+        Object *argv, int flags) {
+    return alloc_String(GRACE_CUDA_INCLUDE_DIR);
+}
 Object module_cuda_init() {
     if (cuda_module != NULL)
         return cuda_module;
@@ -484,6 +507,8 @@ Object module_cuda_init() {
         &cuda_using_do_blockWidth_blockHeight_gridWidth_gridHeight);
     add_Method(c, "using()do", &cuda_using_do);
     add_Method(c, "using()times()do", &cuda_using_times_do);
+    add_Method(c, "bindir", &cuda_bindir);
+    add_Method(c, "includedir", &cuda_includedir);
     Object o = alloc_newobj(0, c);
     cuda_module = o;
     gc_root(o);

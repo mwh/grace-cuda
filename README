@@ -16,8 +16,7 @@ top.
 
 If your Minigrace or CUDA installations are different than expected you
 will need to specify one or more of the variables found at the top of
-the Makefile. You may also need to modify cudap.grace to set the path to
-nvcc.
+the Makefile.
 
 These bindings are intended for use with Minigrace, a compiler for
 Grace. Minigrace is available from <https://github.com/mwh/minigrace>

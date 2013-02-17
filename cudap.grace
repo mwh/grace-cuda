@@ -1,4 +1,5 @@
 import "io" as io
+import "cuda" as cuda
 
 def CudaError = Error.refine "CudaError"
 
@@ -28,7 +29,7 @@ method replaceNode(node) {
 }
 
 method nvcc(id) {
-    if (!io.system("/opt/cuda/bin/nvcc -m64 -I/opt/cuda/include "
+    if (!io.system("{cuda.bindir}/nvcc -m64 -I{cuda.includedir} "
         ++ "-o _cuda/{id}.ptx -ptx _cuda/{id}.cu")) then {
         CudaError.raise("NVCC returned an error when compiling CUDA code")
     }
