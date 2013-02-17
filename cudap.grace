@@ -46,11 +46,6 @@ method usingDo(node) {
     node.with[2].args[1] := compileBasicBlock(node.with[2].args[1], node)
     return node
 }
-method overAllDo(node) {
-    node.with[8].args[1] := compileAllBlock(node.with[8].args[1], node)
-    return node
-}
-
 method overMap(node) {
     if (node.with[2].args[1].kind != "block") then {
         return node
@@ -59,6 +54,30 @@ method overMap(node) {
     return node
 }
 
+method compile(header, init, body, extra, block) {
+    def id = (header ++ init ++ body).hashcode
+    def fp = io.open("_cuda/{id}.cu", "w")
+    fp.write("extern \"C\" __global__ void block{id}")
+    fp.write(header)
+    fp.write(init)
+    fp.write(body)
+    fp.write("}")
+    fp.close
+    nvcc(id)
+    var replacement := "_cuda/{id}.ptx"
+    if (extra.size > 0) then {
+        replacement := replacement ++ " " ++ extra
+    }
+    return object {
+        def kind is public, readable = "string"
+        var value is public, readable, writable := replacement
+        var register is public, readable, writable := ""
+        def line is public, readable = block.line
+        method accept(visitor) is public {
+            visitor.visitString(self)
+        }
+    }
+}
 method compileMapBlock(block) {
     var str := ""
     var res := "0"
@@ -70,8 +89,7 @@ method compileMapBlock(block) {
     }
     str := str ++ "__res[__i] = {res};" 
     str := str ++ "}"
-    def id = str.hashcode
-    var header := "extern \"C\" __global__ void block{id}(float *__res"
+    var header := "(float *__res"
     var init := ""
     for (block.params) do {p->
         header := header ++ ", const float *_arg_{p.value}"
@@ -80,66 +98,15 @@ method compileMapBlock(block) {
     header := header ++ ", int N) \{\n"
     header := header ++ "int __i = blockDim.x * blockIdx.x + threadIdx.x;\n"
     header := header ++ "if (__i < N) \{"
-    def fp = io.open("_cuda/{str.hashcode}.cu", "w")
-    fp.write(header)
-    fp.write(init)
-    fp.write(str)
-    fp.write("}")
-    fp.close
-    nvcc(id)
-    return object {
-        def kind is public, readable = "string"
-        var value is public, readable, writable := "_cuda/{id}.ptx"
-        var register is public, readable, writable := ""
-        def line is public, readable = block.line
-        method accept(visitor) is public {
-            visitor.visitString(self)
-        }
-    }
+    compile(header, init, str, "", block)
 }
 
-method compileNumbersDoBlock(block, node) {
-    var str := ""
-    for (block.body) do {n->
-        str := str ++ compileNode(n) ++ ";\n"
-    }
-    def id = str.hashcode
-    var header := "extern \"C\" __global__ void block{id}("
-    var init := ""
-    var pIndex := 1
-    for (node.with[1].args) do {p->
-        header := header ++ "float *{block.params.at(pIndex).value}, "
-        pIndex := pIndex + 1
-    }
-    for (node.with[2].args) do {p->
-        header := header ++ "const float {block.params.at(pIndex).value}, "
-        pIndex := pIndex + 1
-    }
-    header := header ++ "int {block.params.at(pIndex).value}) \{\n"
-    def fp = io.open("_cuda/{str.hashcode}.cu", "w")
-    fp.write(header)
-    fp.write(init)
-    fp.write(str)
-    fp.write("}")
-    fp.close
-    nvcc(id)
-    return object {
-        def kind is public, readable = "string"
-        var value is public, readable, writable := "_cuda/{id}.ptx"
-        var register is public, readable, writable := ""
-        def line is public, readable = block.line
-        method accept(visitor) is public {
-            visitor.visitString(self)
-        }
-    }
-}
 method compileBasicBlock(block, node) {
     var str := ""
     for (block.body) do {n->
         str := str ++ compileNode(n) ++ ";\n"
     }
-    def id = str.hashcode
-    var header := "extern \"C\" __global__ void block{id}("
+    var header := "("
     var init := ""
     var pIndex := 1
     var typeStr := ""
@@ -159,34 +126,18 @@ method compileBasicBlock(block, node) {
     }
     header := header.substringFrom(1)to(header.size - 2)
     header := header ++ ") \{\n"
-    def fp = io.open("_cuda/{str.hashcode}.cu", "w")
-    fp.write(header)
-    fp.write(init)
-    fp.write(str)
-    fp.write("}")
-    fp.close
-    nvcc(id)
     // Here we encode the parameter types given in the block into the
     // string we replace the block with, along with the name of the
     // ptx file. The runtime library understands how to unpack this
     // string and handle the arguments accordingly.
-    return object {
-        def kind is public, readable = "string"
-        var value is public, readable, writable := "_cuda/{id}.ptx " ++ typeStr
-        var register is public, readable, writable := ""
-        def line is public, readable = block.line
-        method accept(visitor) is public {
-            visitor.visitString(self)
-        }
-    }
+    compile(header, init, str, typeStr, block)
 }
 method compileAllBlock(block, node) {
     var str := ""
     for (block.body) do {n->
         str := str ++ compileNode(n) ++ ";\n"
     }
-    def id = str.hashcode
-    var header := "extern \"C\" __global__ void block{id}("
+    var header := "("
     var init := ""
     var pIndex := 1
     for (node.with[1].args) do {p->
@@ -203,28 +154,8 @@ method compileAllBlock(block, node) {
     }
     header := header.substringFrom(1)to(header.size - 2)
     header := header ++ ") \{\n"
-    def fp = io.open("_cuda/{str.hashcode}.cu", "w")
-    fp.write(header)
-    fp.write(init)
-    fp.write(str)
-    fp.write("}")
-    fp.close
-    nvcc(id)
-    return object {
-        def kind is public, readable = "string"
-        var value is public, readable, writable := "_cuda/{id}.ptx"
-        var register is public, readable, writable := ""
-        def line is public, readable = block.line
-        method accept(visitor) is public {
-            visitor.visitString(self)
-        }
-    }
+    compile(header, init, str, "", block)
 }
-method overNumbersDo(node) {
-    node.with[3].args[1] := compileNumbersDoBlock(node.with[3].args[1], node)
-    return node
-}
-
 method compileNum(node) {
     return "{node.value}"
 }

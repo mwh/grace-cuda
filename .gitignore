@@ -9,3 +9,4 @@ samples/*.gcn
 samples/map
 samples/generalcuda
 samples/matrix
+samples/matrix-flat
