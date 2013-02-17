@@ -28,8 +28,8 @@ method replaceNode(node) {
 }
 
 method nvcc(id) {
-    if (!io.system("/opt/cuda/bin/nvcc -m64 -I/opt/cuda/include -I. -I.. "
-        ++ "-I../../common/inc -o _cuda/{id}.ptx -ptx _cuda/{id}.cu")) then {
+    if (!io.system("/opt/cuda/bin/nvcc -m64 -I/opt/cuda/include "
+        ++ "-o _cuda/{id}.ptx -ptx _cuda/{id}.cu")) then {
         CudaError.raise("NVCC returned an error when compiling CUDA code")
     }
 }
