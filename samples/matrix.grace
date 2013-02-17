@@ -1,7 +1,7 @@
 import "cuda" as cuda
 import "sys" as sys
 // This sample performs matrix multiplication, taking control of the
-// CUDA block size itself and using the typed-block with()...()do form.
+// CUDA block size itself and using the typed-block using()do()... form.
 // It includes two implementations: one using CUDA and one in Grace,
 // with the same simple algorithm and almost the same code (modulo
 // types).
