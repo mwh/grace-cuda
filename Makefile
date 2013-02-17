@@ -10,11 +10,11 @@ SAMPLES_EXECUTABLES = $(addprefix samples/,$(SAMPLES))
 
 all: cudap.gso cuda.gso
 
-cudap.gso: cudap.grace
+cudap.gso: cudap.grace cuda.gso
 	$(MINIGRACE_DIR)/minigrace --dynamic-module cudap.grace
 
 cuda.gso: cuda.c
-	gcc -I$(CUDA_INCLUDE_DIR) -I$(MINIGRACE_DIR) -g -std=c99 -o cuda.gso -L$(CUDA_LIB_DIR) -lcuda -shared -fPIC cuda.c
+	gcc -I$(CUDA_INCLUDE_DIR) -I$(MINIGRACE_DIR) -g -std=c99 -DCUDA_BIN_DIR=$(CUDA_DIR)/bin -DCUDA_INCLUDE_DIR=$(CUDA_INCLUDE_DIR) -o cuda.gso -L$(CUDA_LIB_DIR) -lcuda -shared -fPIC cuda.c
 
 samples: all $(SAMPLES_EXECUTABLES)
 
