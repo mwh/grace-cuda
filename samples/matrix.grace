@@ -85,7 +85,7 @@ cuda.using(m1, m2, m3, m1h, m1w, m2w)
     }
 } blockWidth(bs) blockHeight(bs) gridWidth(gw) gridHeight(gh)
 def cudaTime = sys.elapsed - startCuda
-print "{sys.elapsed}: Done"
+print "{sys.elapsed}: Done in {cudaTime}s."
 
 printMatrix("M3", m3, m1h, m2w)
 
@@ -93,10 +93,10 @@ method graceMatrixMultiply(a, b, c, n, m, p) {
     def size = n * p
     for (0..(n-1)) do {i->
         for (0..(p-1)) do {j->
+            // This loop body is the same as the CUDA code above
             def index = i * p + j
             def ma = m - 1
-            def p2 = p
-            if (index < size) then {
+            if ((i < n) && (j < p)) then {
                 var val := 0
                 for (0..ma) do {k->
                     def ai = k + i * m
@@ -112,9 +112,8 @@ print "{sys.elapsed}: Starting Grace..."
 def startGrace = sys.elapsed
 graceMatrixMultiply(m1, m2, m4, m1h, m1w, m2w)
 def graceTime = sys.elapsed - startGrace
-print "{sys.elapsed}: Done."
+print "{sys.elapsed}: Done in {graceTime}s."
 printMatrix("M4", m4, m1h, m2w)
 
 print "CUDA multiplication time:  {cudaTime}"
 print "Grace multiplication time: {graceTime}"
-
