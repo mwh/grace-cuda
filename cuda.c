@@ -23,6 +23,9 @@
 #endif
 
 Object cuda_module;
+Object CudaError;
+Object ErrorObject; // From gracelib
+Object alloc_Exception(char *name, Object parent);
 
 ClassData CudaFloatArray;
 
@@ -32,11 +35,17 @@ struct CudaFloatArray {
     float data[];
 };
 
+static void raiseError(char *errstr) {
+    Object a = alloc_String(errstr);
+    int i = 1;
+    callmethod(CudaError, "raise", 1, &i, &a);
+}
 static void errcheck(CUresult error) {
     if (error == CUDA_SUCCESS)
         return;
-    fprintf(stderr, "some kind of cuda error: %i\n", error);
-    exit(1);
+    char buf[255];
+    sprintf(buf, "CUDA error code %i\n", error);
+    raiseError(buf);
 }
 
 Object cuda_FloatArray_at(Object self, int nparts, int *argcv,
@@ -78,8 +87,7 @@ Object cuda_using_do_blockWidth_blockHeight_gridWidth_gridHeight(Object self, in
     int deviceCount = 0;
     error = cuDeviceGetCount(&deviceCount);
     if (deviceCount == 0) {
-        fprintf(stderr, "no devices found\n");
-        exit(1);
+        raiseError("No CUDA devices found");
     }
     CUdevice cuDevice;
     CUcontext cuContext;
@@ -100,12 +108,7 @@ Object cuda_using_do_blockWidth_blockHeight_gridWidth_gridHeight(Object self, in
     char *tmp2 = strtok(argStr, " ");
     char blockname[128];
     strcpy(blockname, tmp2);
-    error = cuModuleLoad(&cuModule, blockname);
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error: %i %s\n", error,
-                grcstring(argv[argcv[0]]));
-        exit(1);
-    }
+    errcheck(cuModuleLoad(&cuModule, blockname));
     CUdeviceptr dps[argcv[0]];
     float floats[argcv[0]];
     void *args[argcv[0]];
@@ -127,7 +130,9 @@ Object cuda_using_do_blockWidth_blockHeight_gridWidth_gridHeight(Object self, in
             args[i] = &ints[i];
         } else {
             // Fail
-            fprintf(stderr, "CUDA argument cannot be coerced. This shouldn't happen. Argument string: %s\n", argType);
+            char buf[256];
+            sprintf(buf, "CUDA argument cannot be coerced. This shouldn't happen. Argument string: %s\n", argType);
+            raiseError(buf);
         }
     }
     char name[256];
@@ -138,21 +143,11 @@ Object cuda_using_do_blockWidth_blockHeight_gridWidth_gridHeight(Object self, in
             name[i] = 0;
             break;
         }
-    error = cuModuleGetFunction(&cuFunc, cuModule, name);
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error in getting func: %i %s\n", error,
-                name);
-        exit(1);
-    }
-    error = cuLaunchKernel(cuFunc, gridDimX, gridDimY, 1,
+    errcheck(cuModuleGetFunction(&cuFunc, cuModule, name));
+    errcheck(cuLaunchKernel(cuFunc, gridDimX, gridDimY, 1,
         blockDimX, blockDimY, 1,
         0,
-        NULL, args, NULL);
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error in running: %i %s\n", error,
-                blockname);
-        exit(1);
-    }
+        NULL, args, NULL));
     for (int i=0; i<argcv[0]; i++) {
         struct CudaFloatArray *a = (struct CudaFloatArray *)argv[i];
         errcheck(cuMemcpyDtoH(&a->data, dps[i], a->size * sizeof(float)));
@@ -167,8 +162,7 @@ Object cuda_using_times_do(Object self, int nparts, int *argcv,
     int deviceCount = 0;
     error = cuDeviceGetCount(&deviceCount);
     if (deviceCount == 0) {
-        fprintf(stderr, "no devices found\n");
-        exit(1);
+        raiseError("No CUDA devices found");
     }
     CUdevice cuDevice;
     CUcontext cuContext;
@@ -190,12 +184,7 @@ Object cuda_using_times_do(Object self, int nparts, int *argcv,
     char *tmp2 = strtok(argStr, " ");
     char blockname[128];
     strcpy(blockname, tmp2);
-    error = cuModuleLoad(&cuModule, blockname);
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error: %i %s\n", error,
-                grcstring(argv[argcv[0]]));
-        exit(1);
-    }
+    errcheck(cuModuleLoad(&cuModule, blockname));
     CUdeviceptr dps[argcv[0]];
     float floats[argcv[0]];
     void *args[argcv[0] + 1];
@@ -221,7 +210,9 @@ Object cuda_using_times_do(Object self, int nparts, int *argcv,
             args[i] = &ints[i];
         } else {
             // Fail
-            fprintf(stderr, "CUDA argument cannot be coerced. This shouldn't happen. Argument string: %s\n", argType);
+            char buf[256];
+            sprintf(buf, "CUDA argument cannot be coerced. This shouldn't happen. Argument string: %s\n", argType);
+            raiseError(buf);
         }
     }
     gridDimX = (size + blockDimX - 1) / blockDimX;
@@ -233,21 +224,11 @@ Object cuda_using_times_do(Object self, int nparts, int *argcv,
             name[i] = 0;
             break;
         }
-    error = cuModuleGetFunction(&cuFunc, cuModule, name);
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error in getting func: %i %s\n", error,
-                name);
-        exit(1);
-    }
-    error = cuLaunchKernel(cuFunc, gridDimX, gridDimY, 1,
+    errcheck(cuModuleGetFunction(&cuFunc, cuModule, name));
+    errcheck(cuLaunchKernel(cuFunc, gridDimX, gridDimY, 1,
         blockDimX, blockDimY, 1,
         0,
-        NULL, args, NULL);
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error in running: %i %s\n", error,
-                blockname);
-        exit(1);
-    }
+        NULL, args, NULL));
     for (int i=0; i<argcv[0]; i++) {
         struct CudaFloatArray *a = (struct CudaFloatArray *)argv[i];
         errcheck(cuMemcpyDtoH(&a->data, dps[i], a->size * sizeof(float)));
@@ -262,8 +243,7 @@ Object cuda_using_do(Object self, int nparts, int *argcv,
     int deviceCount = 0;
     error = cuDeviceGetCount(&deviceCount);
     if (deviceCount == 0) {
-        fprintf(stderr, "no devices found\n");
-        exit(1);
+        raiseError("No CUDA devices found");
     }
     CUdevice cuDevice;
     CUcontext cuContext;
@@ -284,12 +264,7 @@ Object cuda_using_do(Object self, int nparts, int *argcv,
     char *tmp2 = strtok(argStr, " ");
     char blockname[128];
     strcpy(blockname, tmp2);
-    error = cuModuleLoad(&cuModule, blockname);
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error: %i %s\n", error,
-                grcstring(argv[argcv[0]]));
-        exit(1);
-    }
+    errcheck(cuModuleLoad(&cuModule, blockname));
     CUdeviceptr dps[argcv[0]];
     float floats[argcv[0]];
     void *args[argcv[0]];
@@ -314,7 +289,9 @@ Object cuda_using_do(Object self, int nparts, int *argcv,
             args[i] = &ints[i];
         } else {
             // Fail
-            fprintf(stderr, "CUDA argument cannot be coerced. This shouldn't happen. Argument string: %s\n", argType);
+            char buf[256];
+            sprintf(buf, "CUDA argument cannot be coerced. This shouldn't happen. Argument string: %s\n", argType);
+            raiseError(buf);
         }
     }
     gridDimX = (size + blockDimX - 1) / blockDimX;
@@ -326,21 +303,11 @@ Object cuda_using_do(Object self, int nparts, int *argcv,
             name[i] = 0;
             break;
         }
-    error = cuModuleGetFunction(&cuFunc, cuModule, name);
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error in getting func: %i %s\n", error,
-                name);
-        exit(1);
-    }
-    error = cuLaunchKernel(cuFunc, gridDimX, gridDimY, 1,
+    errcheck(cuModuleGetFunction(&cuFunc, cuModule, name));
+    errcheck(cuLaunchKernel(cuFunc, gridDimX, gridDimY, 1,
         blockDimX, blockDimY, 1,
         0,
-        NULL, args, NULL);
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error in running: %i %s\n", error,
-                blockname);
-        exit(1);
-    }
+        NULL, args, NULL));
     for (int i=0; i<argcv[0]; i++) {
         struct CudaFloatArray *a = (struct CudaFloatArray *)argv[i];
         errcheck(cuMemcpyDtoH(&a->data, dps[i], a->size * sizeof(float)));
@@ -355,8 +322,7 @@ Object cuda_over_map(Object self, int nparts, int *argcv,
     int deviceCount = 0;
     error = cuDeviceGetCount(&deviceCount);
     if (deviceCount == 0) {
-        fprintf(stderr, "no devices found\n");
-        exit(1);
+        raiseError("No CUDA devices found");
     }
     CUdevice cuDevice;
     CUcontext cuContext;
@@ -367,12 +333,7 @@ Object cuda_over_map(Object self, int nparts, int *argcv,
     CUdeviceptr d_A;
     CUdeviceptr d_B;
     CUdeviceptr d_res;
-    error = cuModuleLoad(&cuModule, grcstring(argv[argcv[0]]));
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error: %i %s\n", error,
-                grcstring(argv[argcv[0]]));
-        exit(1);
-    }
+    errcheck(cuModuleLoad(&cuModule, grcstring(argv[argcv[0]])));
     CUdeviceptr dps[argcv[0]];
     void *args[argcv[0]+2];
     int size = INT_MAX;
@@ -402,21 +363,11 @@ Object cuda_over_map(Object self, int nparts, int *argcv,
             name[i] = 0;
             break;
         }
-    error = cuModuleGetFunction(&cuFunc, cuModule, name);
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error in getting func: %i %s\n", error,
-                name);
-        exit(1);
-    }
-    error = cuLaunchKernel(cuFunc, blocksPerGrid, 1, 1,
+    errcheck(cuModuleGetFunction(&cuFunc, cuModule, name));
+    errcheck(cuLaunchKernel(cuFunc, blocksPerGrid, 1, 1,
         threadsPerBlock, 1, 1,
         0,
-        NULL, args, NULL);
-    if (error != CUDA_SUCCESS) {
-        fprintf(stderr, "some kind of cuda error in running: %i %s\n", error,
-                grcstring(argv[argcv[0]]));
-        exit(1);
-    }
+        NULL, args, NULL));
     errcheck(cuMemcpyDtoH(&r->data, d_res, fsize));
     cuMemFree(d_res);
     for (int i=0; i<argcv[0]; i++)
@@ -434,8 +385,7 @@ Object cuda_deviceName(Object self, int nparts, int *argcv,
     int deviceCount = 0;
     cuDeviceGetCount(&deviceCount);
     if (deviceCount == 0) {
-        fprintf(stderr, "no devices found\n");
-        exit(1);
+        raiseError("No CUDA devices found");
     }
     CUdevice cuDevice;
     cuDeviceGet(&cuDevice, 0);
@@ -449,8 +399,7 @@ Object cuda_computeCapability(Object self, int nparts, int *argcv,
     int deviceCount = 0;
     cuDeviceGetCount(&deviceCount);
     if (deviceCount == 0) {
-        fprintf(stderr, "no devices found\n");
-        exit(1);
+        raiseError("No CUDA devices found");
     }
     CUdevice cuDevice;
     int major, minor;
@@ -474,8 +423,7 @@ Object cuda_cores(Object self, int nparts, int *argcv,
     int deviceCount = 0;
     cuDeviceGetCount(&deviceCount);
     if (deviceCount == 0) {
-        fprintf(stderr, "no devices found\n");
-        exit(1);
+        raiseError("No CUDA devices found");
     }
     CUdevice cuDevice;
     int mpcount;
@@ -497,6 +445,8 @@ Object cuda_includedir(Object self, int nparts, int *argcv,
 Object module_cuda_init() {
     if (cuda_module != NULL)
         return cuda_module;
+    CudaError = alloc_Exception("CudaError", ErrorObject);
+    gc_root(CudaError);
     ClassData c = alloc_class("Module<cuda>", 13);
     add_Method(c, "over()map", &cuda_over_map);
     add_Method(c, "floatArray", &cuda_floatArray);
