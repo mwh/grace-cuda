@@ -10,3 +10,4 @@ samples/map
 samples/generalcuda
 samples/matrix
 samples/matrix-flat
+samples/matrix-infer
