@@ -2,7 +2,7 @@ import "io" as io
 import "mgcollections" as collections
 import "ast" as ast
 import "cuda" as cuda
-import "ast" as ast
+import "util" as util
 
 def CudaError = Error.refine "CudaError"
 
@@ -87,6 +87,10 @@ method plainDo(node) {
 
 method compile(header, init, body, extra, block) {
     def id = (header ++ init ++ body).hashcode
+    if (util.extensions.contains("cudapverbose")) then {
+        print "CUDA code id: {id}"
+        print "{header}{init}{body}"
+    }
     def fp = io.open("_cuda/{id}.cu", "w")
     fp.write("extern \"C\" __global__ void block{id}")
     fp.write(header)
