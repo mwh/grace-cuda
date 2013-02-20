@@ -315,6 +315,36 @@ Object cuda_using_do(Object self, int nparts, int *argcv,
     }
     return alloc_none();
 }
+Object cuda_do_dimensions_infer(Object self, int nparts, int *argcv,
+        Object *argv, int flags) {
+    int argcv2[6];
+    Object argv2[argcv[0] + 5];
+    for (int i=1; i<argcv[0]; i++)
+        argv2[i-1] = argv[i];
+    argv2[argcv[0] - 1] = argv[0];
+    for (int i=argcv[0]; i<argcv[0]+4; i++)
+        argv2[i] = argv[i];
+    argcv2[0] = argcv[0] - 1;
+    argcv2[1] = 1;
+    argcv2[2] = 1;
+    argcv2[3] = 1;
+    argcv2[4] = 1;
+    argcv2[5] = 1;
+    for (int i=2; i<nparts; i++)
+        argcv[i] = argcv[i-1];
+    return callmethod(self, "using()do()blockWidth()blockHeight()gridWidth()gridHeight", 6, argcv2, argv2);
+}
+Object cuda_do_infer(Object self, int nparts, int *argcv,
+        Object *argv, int flags) {
+    int argcv2[2];
+    Object argv2[argcv[0]];
+    for (int i=1; i<argcv[0]; i++)
+        argv2[i-1] = argv[i];
+    argv2[argcv[0] - 1] = argv[0];
+    argcv2[0] = argcv[0] - 1;
+    argcv2[1] = 1;
+    return callmethod(self, "using()do", 2, argcv2, argv2);
+}
 Object cuda_over_map(Object self, int nparts, int *argcv,
         Object *argv, int flags) {
     CUresult error;
@@ -457,6 +487,9 @@ Object module_cuda_init() {
         &cuda_using_do_blockWidth_blockHeight_gridWidth_gridHeight);
     add_Method(c, "using()do", &cuda_using_do);
     add_Method(c, "using()times()do", &cuda_using_times_do);
+    add_Method(c, "do", &cuda_do_infer);
+    add_Method(c, "do()blockWidth()blockHeight()gridWidth()gridHeight",
+            &cuda_do_dimensions_infer);
     add_Method(c, "bindir", &cuda_bindir);
     add_Method(c, "includedir", &cuda_includedir);
     Object o = alloc_newobj(0, c);
