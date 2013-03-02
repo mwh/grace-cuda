@@ -1,5 +1,6 @@
 import "io" as io
 import "cuda" as cuda
+import "ast" as ast
 
 def CudaError = Error.refine "CudaError"
 
@@ -26,6 +27,19 @@ method replaceNode(node) {
         }
     }
     return node
+}
+
+def visitor = object {
+    inherits ast.baseVisitor
+    method visitCall(o) -> Boolean {
+        replaceNode(o)
+        false
+    }
+}
+method processAST(values) {
+    for (values) do {v->
+        v.accept(visitor)
+    }
 }
 
 method nvcc(id) {
@@ -75,6 +89,9 @@ method compile(header, init, body, extra, block) {
         def line is public, readable = block.line
         method accept(visitor) is public {
             visitor.visitString(self)
+        }
+        method map(blk)before(blkBefore)after(blkAfter) {
+            self
         }
     }
 }
@@ -172,10 +189,10 @@ method compileBind(node) {
     return "{compileNode(node.dest)} = {compileNode(node.value)}"
 }
 method compileVarDec(node) {
-    return "{compileNode(node.dtype)} {compileNode(node.name)} = {compileNode(node.value)}"
+    return "{node.dtype.value} {compileNode(node.name)} = {compileNode(node.value)}"
 }
 method compileDefDec(node) {
-    return "const {compileNode(node.dtype)} {compileNode(node.name)} = {compileNode(node.value)}"
+    return "const {node.dtype.value} {compileNode(node.name)} = {compileNode(node.value)}"
 }
 method compileFor(node) {
     def over = node.with[1].args[1]
