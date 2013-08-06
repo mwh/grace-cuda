@@ -21,9 +21,9 @@ var a2 := cuda.floatArray(elements)
 var a3 := cuda.floatArray(elements)
 
 print "{sys.elapsed}: Starting CUDA..."
-cuda.using(a1, a2, a3, 2.5)do {x : floatArray, y : floatArray, z : floatArray,
-n : float, size : int ->
-    var i : int := blockDim.x * blockIdx.x + threadIdx.x
+cuda.using(a1, a2, a3, 2.5)do {x : cuda.floatArray, y : cuda.floatArray, z : cuda.floatArray,
+n : cuda.float, size : cuda.int ->
+    var i : cuda.int := blockDim.x * blockIdx.x + threadIdx.x
     if (i < size) then {
         z[i] := expf(x[i])
         y[i] := x[i] / n
