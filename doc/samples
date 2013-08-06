@@ -6,5 +6,8 @@ These sample programs can be compiled with `make samples`:
 - matrix implements a simple matrix multiplication algorithm and its
   native Grace equivalent for comparison. Essentially the same code is
   used for both implementations.
+- matrix-infer implements the same matrix multiplication algorithm, but
+  the types are inferred. The CUDA and Grace implementations have
+  identical code bodies.
 - matrix-flat implements the same algorithm, but with the
   using()times()do method for a "flat" loop.
