@@ -85,8 +85,24 @@ method plainDo(node) {
     return node
 }
 
+method escapeident(s) {
+    var ns := ""
+    for (s) do { c ->
+        def o = c.ord
+        if (((o >= 65) && (o <= 90))
+            || ((o >= 97) && (o <= 122))
+            || ((o >= 48) && (o <= 57))
+            || (o == 95)) then {
+            ns := ns ++ c
+        } else {
+            ns := ns ++ "_{o}_"
+        }
+    }
+    ns
+}
+
 method compile(header, init, body, extra, block) {
-    def id = (header ++ init ++ body).hashcode
+    def id = escapeident(util.modname) ++ "__{block.line}"
     if (util.extensions.contains("cudapverbose")) then {
         print "CUDA code id: {id}"
         print "{header}{init}{body}"
