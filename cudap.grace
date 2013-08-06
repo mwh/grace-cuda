@@ -29,7 +29,7 @@ method replaceNode(node) {
     return node
 }
 
-def visitor = object {
+def callVisitor = object {
     inherits ast.baseVisitor
     method visitCall(o) -> Boolean {
         replaceNode(o)
@@ -38,7 +38,7 @@ def visitor = object {
 }
 method processAST(values) {
     for (values) do {v->
-        v.accept(visitor)
+        v.accept(callVisitor)
     }
 }
 
